@@ -5,22 +5,6 @@
     <groupId>org.poormanscastle.products</groupId>
     <artifactId>hit2assclient</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
-    <packaging>jar</packaging>
-
-    <name>hit2assclient</name>
-    <url>http://maven.apache.org</url>
 
     <properties>
         <project.source.version>1.8</project.source.version>
@@ -29,7 +13,56 @@
         <docfamily.version>5.10.3</docfamily.version>
     </properties>
 
+    <build>
+        <finalName>HitAssClientTools</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.5.1</version>
+                <configuration>
+                    <source>${project.source.version}</source>
+                    <target>${project.target.version}</target>
+                    <encoding>${project.build.sourceEncoding}</encoding>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-release-plugin</artifactId>
+                <version>2.5.1</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>2.6</version>
+                <configuration>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+    <packaging>jar</packaging>
+
+    <name>hit2assclient</name>
+    <url>http://maven.apache.org</url>
+
     <dependencies>
+        <dependency>
+            <groupId>org.poormanscastle.products</groupId>
+            <artifactId>hit2ass</artifactId>
+            <version>0.0.6</version>
+        </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
@@ -60,19 +93,13 @@
             <artifactId>DocRepo-core</artifactId>
             <version>${docfamily.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>axis</groupId>
+            <artifactId>axis</artifactId>
+            <version>1.4</version>
+        </dependency>
     </dependencies>
-    <plugins>
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <version>2.5.1</version>
-            <configuration>
-                <source>${project.source.version}</source>
-                <target>${project.target.version}</target>
-                <encoding>${project.build.sourceEncoding}</encoding>
-            </configuration>
-        </plugin>
-    </plugins>
     <developers>
         <developer>
             <id>georg.federmann</id>
