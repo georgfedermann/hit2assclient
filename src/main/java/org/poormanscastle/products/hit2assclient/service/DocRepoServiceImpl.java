@@ -1,11 +1,30 @@
 package org.poormanscastle.products.hit2assclient.service;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.rmi.RemoteException;
+import java.sql.Blob;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 import javax.xml.rpc.ServiceException;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.stream.StreamResult;
+import javax.xml.transform.stream.StreamSource;
 
+import org.apache.axiom.om.OMElement;
+import org.apache.axiom.om.OMXMLBuilderFactory;
+import org.apache.axiom.om.xpath.AXIOMXPath;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 
@@ -16,6 +35,7 @@ import com.assentis.docrepo.service.iface.PublicMutator;
 import com.assentis.docrepo.service.iface.bean.File;
 import com.assentis.docrepo.service.iface.bean.FileMutator;
 import com.assentis.docrepo.service.iface.bean.Folder;
+import com.assentis.docrepo.service.iface.bean.ProtectedItem;
 
 /**
  * Created by georg on 15.09.16.
@@ -24,7 +44,7 @@ class DocRepoServiceImpl implements DocRepoService {
 
     private final static Logger logger = Logger.getLogger(DocRepoServiceImpl.class);
 
-    private String docRepoBaseUrl = "http://192.168.188.60:12002/DBLayer/services/";
+    private String docRepoBaseUrl = "http://172.20.10.8:12002/DBLayer/services/";
     private String username = "uta";
     private String password = "uta";
 
@@ -35,6 +55,32 @@ class DocRepoServiceImpl implements DocRepoService {
     private PublicMutator docRepoProxy;
 
     @Override
+    public byte[] retrieveWorkspaceForDbkey(String dbkey) {
+        try {
+            String url = "jdbc:derby://172.20.10.8:1527/derby/repository.db";
+            Connection connection = DriverManager.getConnection(url);
+            Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery(StringUtils.join("select content from COCKPITSCHEMA.ELEMENTCONTENT where cockpitelement_id = ", dbkey, " for update"));
+            if (resultSet.next()) {
+                Blob ablob = resultSet.getBlob(1);
+                InputStream blobInputStream = ablob.getBinaryStream();
+                byte[] result = IOUtils.toByteArray(blobInputStream);
+                resultSet.close();
+                return result;
+            } else {
+                String errMsg = StringUtils.join("Could not find elementcontent for dbkey ", dbkey);
+                logger.error(errMsg);
+                throw new RuntimeException(errMsg);
+            }
+        } catch (IOException | SQLException e) {
+            String errorMessage = StringUtils.join("Could not load zipped blob from elementcontent for dbkey: ", dbkey, ", because: ",
+                    e.getClass().getName(), " - ", e.getMessage());
+            logger.error(errorMessage);
+            throw new RuntimeException(errorMessage, e);
+        }
+    }
+
+    @Override
     public void importWorkspace(byte[] workspaceData, String bausteinName) {
         try {
             Folder parentFolder = (Folder) docRepoProxy.getByPath(StringUtils.join(bausteinFolderPath,
@@ -43,12 +89,29 @@ class DocRepoServiceImpl implements DocRepoService {
             fileMutator.setFolder_ID(parentFolder.getDBKey());
             fileMutator.setName(bausteinName);
             fileMutator.setType(DocRepoConstants.FILETYPE_WORKSPACE);
+
             File file = docRepoProxy.createFile(fileMutator, ADBUtility.zipElementContent(workspaceData), false);
+            Long dbKey = getItemDbKey(fileMutator.getName(), StringUtils.join(bausteinFolderPath, bausteinName,
+                    "/workspace/"));
+
             logger.info(StringUtils.join("Created Workspace file ", file.getDBKey()));
 
-        } catch (RemoteException e) {
-            String errorMessage = StringUtils.join("Could not process importWorkspace() for baustein ", bausteinName, ", because of: ",
-                    e.getClass().getName(), " - ", e.getMessage());
+            // extract the elementId
+            OMElement workspaceDocument = OMXMLBuilderFactory.createOMBuilder(
+                    new ByteArrayInputStream(workspaceData)).getDocumentElement();
+            AXIOMXPath xPath = new AXIOMXPath("/Cockpit/Object[1]/@id");
+            String elementId = xPath.stringValueOf(workspaceDocument);
+
+            String url = "jdbc:derby://172.20.10.8:1527/derby/repository.db";
+            Connection connection = DriverManager.getConnection(url);
+            Statement statement = connection.createStatement();
+            statement.executeUpdate(StringUtils.join("update COCKPITSCHEMA.cockpitelement set elementid = '", elementId,
+                    "' where cockpitelement_id = ", String.valueOf(dbKey)));
+            connection.close();
+
+        } catch (Exception e) {
+            String errorMessage = StringUtils.join("Could not process importWorkspace() for baustein ", bausteinName,
+                    ", because of: ", e.getClass().getName(), " - ", e.getMessage());
             logger.error(errorMessage, e);
             throw new RuntimeException(errorMessage, e);
         }
@@ -89,7 +152,7 @@ class DocRepoServiceImpl implements DocRepoService {
             bausteinFolder.setName(name);
             bausteinFolder.setParent_ID(bausteinFolderId);
             docRepoProxy.createFolder(bausteinFolder);
-            bausteinFolder.setDBKey(getFolderDbKey(name, bausteinFolderPath));
+            bausteinFolder.setDBKey(getItemDbKey(name, bausteinFolderPath));
 
             Folder workspaceFolder = new Folder();
             workspaceFolder.setName("workspace");
@@ -111,13 +174,13 @@ class DocRepoServiceImpl implements DocRepoService {
     }
 
     @Override
-    public Long getFolderDbKey(String folderName, String path) {
+    public Long getItemDbKey(String itemName, String path) {
         try {
-            Folder folder = (Folder) docRepoProxy.getByPath(StringUtils.join(path.endsWith("/") ?
-                    path : StringUtils.join(path, "/"), folderName));
-            return folder.getDBKey();
+            ProtectedItem item = docRepoProxy.getByPath(StringUtils.join(path.endsWith("/") ?
+                    path : StringUtils.join(path, "/"), itemName));
+            return item.getDBKey();
         } catch (RemoteException e) {
-            String errorMessage = StringUtils.join("Could not process getFolderDbKey for path ", path, " and folderName ", folderName,
+            String errorMessage = StringUtils.join("Could not process getFolderDbKey for path ", path, " and folderName ", itemName,
                     ", because of: ",
                     e.getClass().getName(), " - ", e.getMessage());
             logger.error(errorMessage, e);
