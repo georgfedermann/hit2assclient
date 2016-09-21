@@ -1,7 +1,6 @@
 package org.poormanscastle.products.hit2assclient.service;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -15,11 +14,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 import javax.xml.rpc.ServiceException;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.stream.StreamResult;
-import javax.xml.transform.stream.StreamSource;
 
 import org.apache.axiom.om.OMElement;
 import org.apache.axiom.om.OMXMLBuilderFactory;
@@ -83,32 +77,30 @@ class DocRepoServiceImpl implements DocRepoService {
     @Override
     public void importWorkspace(byte[] workspaceData, String bausteinName) {
         try {
-            Folder parentFolder = (Folder) docRepoProxy.getByPath(StringUtils.join(bausteinFolderPath,
-                    bausteinName, "/workspace"));
-            FileMutator fileMutator = new FileMutator();
-            fileMutator.setFolder_ID(parentFolder.getDBKey());
-            fileMutator.setName(bausteinName);
-            fileMutator.setType(DocRepoConstants.FILETYPE_WORKSPACE);
-
-            File file = docRepoProxy.createFile(fileMutator, ADBUtility.zipElementContent(workspaceData), false);
-            Long dbKey = getItemDbKey(fileMutator.getName(), StringUtils.join(bausteinFolderPath, bausteinName,
-                    "/workspace/"));
-
-            logger.info(StringUtils.join("Created Workspace file ", file.getDBKey()));
-
-            // extract the elementId
+            // extract the elementId from the new workspace
             OMElement workspaceDocument = OMXMLBuilderFactory.createOMBuilder(
                     new ByteArrayInputStream(workspaceData)).getDocumentElement();
             AXIOMXPath xPath = new AXIOMXPath("/Cockpit/Object[1]/@id");
             String elementId = xPath.stringValueOf(workspaceDocument);
 
-            String url = "jdbc:derby://172.20.10.8:1527/derby/repository.db";
-            Connection connection = DriverManager.getConnection(url);
-            Statement statement = connection.createStatement();
-            statement.executeUpdate(StringUtils.join("update COCKPITSCHEMA.cockpitelement set elementid = '", elementId,
-                    "' where cockpitelement_id = ", String.valueOf(dbKey)));
-            connection.close();
+            Folder parentFolder = (Folder) docRepoProxy.getByPath(StringUtils.join(bausteinFolderPath,
+                    bausteinName, "/workspace"));
+            FileMutator fileMutator = new FileMutator();
+            fileMutator.setElementID(elementId);
+            fileMutator.setFolder_ID(parentFolder.getDBKey());
+            fileMutator.setName(bausteinName);
+            fileMutator.setType(DocRepoConstants.FILETYPE_WORKSPACE);
 
+            File file = docRepoProxy.createFile(fileMutator, ADBUtility.zipElementContent(workspaceData), false);
+            Long workspaceDbKey = getItemDbKey(fileMutator.getName(), StringUtils.join(bausteinFolderPath, bausteinName,
+                    "/workspace/"));
+
+            logger.info(StringUtils.join("Created Workspace file ", file.getDBKey()));
+
+            file.setElementID(elementId);
+            docRepoProxy.lockFile(workspaceDbKey);
+            docRepoProxy.updateFileAttributes(file);
+            docRepoProxy.unlockFile(workspaceDbKey);
         } catch (Exception e) {
             String errorMessage = StringUtils.join("Could not process importWorkspace() for baustein ", bausteinName,
                     ", because of: ", e.getClass().getName(), " - ", e.getMessage());
@@ -178,6 +170,7 @@ class DocRepoServiceImpl implements DocRepoService {
         try {
             ProtectedItem item = docRepoProxy.getByPath(StringUtils.join(path.endsWith("/") ?
                     path : StringUtils.join(path, "/"), itemName));
+            item.getDBKey();
             return item.getDBKey();
         } catch (RemoteException e) {
             String errorMessage = StringUtils.join("Could not process getFolderDbKey for path ", path, " and folderName ", itemName,
