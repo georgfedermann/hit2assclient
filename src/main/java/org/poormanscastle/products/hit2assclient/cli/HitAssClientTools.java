@@ -33,10 +33,10 @@ public class HitAssClientTools {
         Arrays.stream(Paths.get(
                 StringUtils.defaultString(System.getProperty("hit2ass.clou.path"),
                         "/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked")).toFile().
-                listFiles((dir, name) -> name.startsWith("B.ue108") && !name.endsWith(".acr"))).forEach(bausteinFile -> {
+                listFiles((dir, name) -> name.startsWith("B.ue") && !name.endsWith(".acr"))).forEach(bausteinFile -> {
 
             // create base folder for this baustein, containing workspace and testdata subfolders.
-            client.createFolder(bausteinFile.getName().replaceAll("\\.", "_"));
+            client.createFolder(bausteinFile.getName());
 
             // import XML testdata
             Arrays.stream(Paths.get("/Users/georg/vms/UbuntuWork/shared/hitass/testfaelle").toFile().
@@ -45,7 +45,7 @@ public class HitAssClientTools {
                         try {
                             client.importXmlForBaustein(
                                     new String(Files.readAllBytes(xmlFile.toPath()), System.getProperty("hit2ass.xml.encoding")).getBytes(),
-                                    bausteinFile.getName().replaceAll("\\.", "_"), xmlFile.getName());
+                                    bausteinFile.getName(), xmlFile.getName());
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
@@ -54,15 +54,20 @@ public class HitAssClientTools {
 
             // Try to create workspace and save it to DocRepo
             try {
-                client.importWorkspace(Hit2AssService.getHit2AssService().renderBausteinToWorkspace(
-                        Files.readAllBytes(bausteinFile.toPath())
-                ), bausteinFile.getName().replaceAll("\\.", "_"));
+                Hit2AssService hit2AssService = Hit2AssService.getHit2AssService();
+                byte[] workspaceData = hit2AssService.renderBausteinToWorkspace(
+                        Files.readAllBytes(bausteinFile.toPath()));
+                String workspaceElementId = hit2AssService.extractElementIdFromWorkspace(workspaceData);
+                String documentElementId = hit2AssService.extractElementIdFromDocument(workspaceData);
+                client.importWorkspace(workspaceData, bausteinFile.getName(), workspaceElementId);
+                client.importDeploymentPackage(bausteinFile.getName(), workspaceElementId, documentElementId);
             } catch (Error | Exception e) {
                 // javacc parser throws Errors ...
                 String errorMessage = StringUtils.join("Could not process HIT/CLOU Baustein ", bausteinFile.getName(), ", because:",
                         e.getClass().getName(), " - ", e.getMessage());
                 logger.error(errorMessage, e);
             }
+            // Try to create deployment package and import it to DocRepo
         });
     }
 

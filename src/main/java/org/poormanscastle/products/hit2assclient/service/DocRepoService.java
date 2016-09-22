@@ -24,7 +24,29 @@ public interface DocRepoService {
 
     void importXmlForBaustein(byte[] xmlData, String bausteinName, String xmlFileName);
 
-    void importWorkspace(byte[] workspaceData, String bausteinName);
+    /**
+     * import a given (generated) workspace into DocRepo.
+     *
+     * @param workspaceData a byte[] that contains workspace XML data
+     * @param bausteinName  the name for the new workspace
+     * @param elementId     the elementId was created with the new workspace (if you are using the Hit2Ass generator)
+     *                      and can be extracted from the workspace data using HitAssService.extractElementIdFromWorkspace()
+     */
+    void importWorkspace(byte[] workspaceData, String bausteinName, String elementId);
+
+    /**
+     * Imports a deployment package for a given workspace and creates all necessary references. The deployment package
+     * is created for a document within a given workspace and contains several files describing how this document
+     * can be rendered. If the document is named HitAssDocument, the deployment package is a zip package containing
+     * the following files: deploymentlog.log, HitAssDocument.CHARTDEF.xslt, HitAssDocument.FO.xslt,
+     * Metadata.xml, TextSystem.xml.
+     *
+     * @param bausteinName       the name of the baustein (which also is the name of the corresponding workspace)
+     * @param workspaceElementId the elementId of the corresponding workspace
+     * @param documentElementId  the elementId of the document within the workspace for which a deployment package
+     *                           shall be generated.
+     */
+    void importDeploymentPackage(String bausteinName, String workspaceElementId, String documentElementId);
 
     byte[] retrieveWorkspaceForDbkey(String dbkey);
 

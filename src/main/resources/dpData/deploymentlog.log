@@ -1,0 +1,36 @@
+initialized at 29:
+2016-09-21 10:36:29,089|INFO|Begin deployment process for 'HitAssDocument' ...
+
+2016-09-21 10:36:29,089|INFO|Date / time: '21.09.2016 10:36:29'
+
+2016-09-21 10:36:29,089|INFO|Relative image path: '.'
+
+2016-09-21 10:36:29,089|INFO|Cleanup of 'C:\Users\pva\AppData\Local\Temp\Assentis\DocDesign\Temp\20160921T103117.166.36464308052058-7626.08268116343.1943283.3321926962.6686504.815941975.841.1547967545183' successful
+
+2016-09-21 10:36:29,089|INFO|Deployment directory 'C:\Users\pva\AppData\Local\Temp\Assentis\DocDesign\Temp\20160921T103117.166.36464308052058-7626.08268116343.1943283.3321926962.6686504.815941975.841.1547967545183' successfully created
+
+2016-09-21 10:36:29,089|INFO|Reimport of RTF Documents skipped
+
+2016-09-21 10:36:29,12|INFO|XML Stylesheet for format 'CHARTDEF' for 'HitAssDocument' successfully deployed to 'C:\Users\pva\AppData\Local\Temp\Assentis\DocDesign\Temp\20160921T103117.166.36464308052058-7626.08268116343.1943283.3321926962.6686504.815941975.841.1547967545183' (template name: 'HitAssDocument.CHARTDEF.xslt')
+
+2016-09-21 10:36:30,992|INFO|XML Stylesheet for format 'FO' for 'HitAssDocument' successfully deployed to 'C:\Users\pva\AppData\Local\Temp\Assentis\DocDesign\Temp\20160921T103117.166.36464308052058-7626.08268116343.1943283.3321926962.6686504.815941975.841.1547967545183' (template name: 'HitAssDocument.FO.xslt')
+
+2016-09-21 10:36:30,992|INFO|Use this style sheet if you want to run it XEP with XSL-FO input data (no XSLT transformation)
+
+2016-09-21 10:36:30,992|INFO|Begin deploying Spotcolor definitons ...
+
+2016-09-21 10:36:30,992|INFO|End deploying Spotcolor definitions ...
+
+2016-09-21 10:36:30,992|INFO|Begin deploying Metadata ...
+
+2016-09-21 10:36:31,055|INFO|End deploying Metadata ...
+
+2016-09-21 10:36:31,055|INFO|Begin deploying TextSystem...
+
+2016-09-21 10:36:31,07|INFO|End deploying TextSystem...
+
+2016-09-21 10:36:31,07|INFO|Date / time: '21.09.2016 10:36:31'
+
+2016-09-21 10:36:31,07|INFO|End deployment process for 'HitAssDocument'
+
+for error(s) or warning(s) - see details above

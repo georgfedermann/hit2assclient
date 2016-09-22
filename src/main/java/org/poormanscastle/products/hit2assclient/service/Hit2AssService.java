@@ -6,8 +6,12 @@ package org.poormanscastle.products.hit2assclient.service;
 public interface Hit2AssService {
 
     byte[] renderBausteinToWorkspace(byte[] bausteinData);
-    
-    static Hit2AssService getHit2AssService(){
+
+    String extractElementIdFromWorkspace(byte[] workspaceData);
+
+    String extractElementIdFromDocument(byte[] workspaceData);
+
+    static Hit2AssService getHit2AssService() {
         return new Hit2AssServiceImpl();
     }
 

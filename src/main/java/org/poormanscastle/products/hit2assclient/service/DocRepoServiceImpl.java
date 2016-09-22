@@ -1,10 +1,16 @@
 package org.poormanscastle.products.hit2assclient.service;
 
-import java.io.ByteArrayInputStream;
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.rmi.RemoteException;
 import java.sql.Blob;
 import java.sql.Connection;
@@ -12,12 +18,11 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import javax.xml.rpc.ServiceException;
 
-import org.apache.axiom.om.OMElement;
-import org.apache.axiom.om.OMXMLBuilderFactory;
-import org.apache.axiom.om.xpath.AXIOMXPath;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
@@ -75,32 +80,106 @@ class DocRepoServiceImpl implements DocRepoService {
     }
 
     @Override
-    public void importWorkspace(byte[] workspaceData, String bausteinName) {
+    public void importDeploymentPackage(String bausteinName, String workspaceElementId, String documentElementId) {
+        // create zipped file with dummy deployment package
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        ZipOutputStream zipper = new ZipOutputStream(buffer);
+        Path dpInputFolder = Paths.get(getClass().getClassLoader().getResource("dpData").getPath());
         try {
-            // extract the elementId from the new workspace
-            OMElement workspaceDocument = OMXMLBuilderFactory.createOMBuilder(
-                    new ByteArrayInputStream(workspaceData)).getDocumentElement();
-            AXIOMXPath xPath = new AXIOMXPath("/Cockpit/Object[1]/@id");
-            String elementId = xPath.stringValueOf(workspaceDocument);
+            Files.walk(dpInputFolder)
+                    .filter(path -> !Files.isDirectory(path))
+                    .forEach(path -> {
+                                ZipEntry zipEntry = new ZipEntry(path.getFileName().toString());
 
-            Folder parentFolder = (Folder) docRepoProxy.getByPath(StringUtils.join(bausteinFolderPath,
-                    bausteinName, "/workspace"));
+                                try {
+                                    byte[] data = Files.readAllBytes(path);
+                                    // replace workspaceElementId in file Metadata.xml
+                                    if (!StringUtils.isBlank(path.getFileName().toString()) &&
+                                            path.getFileName().toString().endsWith("Metadata.xml")) {
+                                        data = new String(data).replace("__workspaceid__", workspaceElementId).getBytes();
+                                    }
+                                    zipper.putNextEntry(zipEntry);
+                                    zipper.write(data);
+                                    zipper.closeEntry();
+                                } catch (IOException e) {
+                                    String errorMessage = StringUtils.join("Could not add ", path.getFileName().toString(),
+                                            " to deployment package zip stream because: ", e.getClass().getName(), " - ",
+                                            e.getMessage());
+                                    logger.error(errorMessage, e);
+                                    throw new RuntimeException(errorMessage, e);
+                                }
+                            }
+                    );
+        } catch (IOException e) {
+            String errorMessage = StringUtils.join("Could not import deployment package because: ",
+                    e.getClass().getName(), " - ", e.getMessage());
+            logger.error(errorMessage, e);
+            throw new RuntimeException(errorMessage, e);
+        } finally {
+            try {
+                zipper.flush();
+                zipper.close();
+                OutputStream testStream = new BufferedOutputStream(new FileOutputStream("/Users/georg/tmp/parking/test.zip"));
+                IOUtils.write(buffer.toByteArray(), testStream);
+                testStream.flush();
+                testStream.close();
+            } catch (IOException e) {
+                // Underlying stream is a ByteArrayOutputStream. There should be no troubles here.
+                logger.error(e);
+            }
+        }
+        // Write zipped file to repository
+        if (buffer.toByteArray() == null || buffer.toByteArray().length == 0) {
+            logger.error("Could not import deployment package since no zipped data available.");
+            return;
+        }
+
+        try {
+            Folder parentFolder = (Folder) docRepoProxy.getByPath(StringUtils.join(
+                    bausteinFolderPath, bausteinName, "/workspace"));
+            FileMutator fileMutator = new FileMutator();
+            fileMutator.setElementID(StringUtils.join(documentElementId, ".dp"));
+            fileMutator.setFolder_ID(parentFolder.getDBKey());
+            fileMutator.setName(StringUtils.join(bausteinName, "_dp"));
+            fileMutator.setType(DocRepoConstants.FILETYPE_DEPLOYMENTPACKAGE);
+
+            File file = docRepoProxy.createFile(fileMutator, ADBUtility.zipElementContent(buffer.toByteArray()), false);
+            logger.info(StringUtils.join("Created deployment package file ", file.getDBKey()));
+
+            // add dependency between workspace and deployment package to the REF table;
+            String sql = StringUtils.join("INSERT INTO COCKPITSCHEMA.deploymentpackage(DEPLOYMENTPACKAGE_ID, WORKSPACE_ID, DEPLPKGCOCKPITELEMENT_ID, ID, DEPENDENTID) VALUES ((select INTEGER(max(deploymentpackage_id)+1) from COCKPITSCHEMA.deploymentpackage), null, null, '",
+                    documentElementId, ".dp', '", workspaceElementId, "')");
+            String url = "jdbc:derby://172.20.10.8:1527/derby/repository.db";
+            Connection connection = DriverManager.getConnection(url);
+            Statement statement = connection.createStatement();
+            statement.executeUpdate(sql);
+            // set deployment package alias name
+            sql = StringUtils.join("update COCKPITSCHEMA.cockpitelement set DOCBASEALIAS = '", bausteinName,
+                    "' where elementid = '", documentElementId, ".dp'");
+            statement.executeUpdate(sql);
+            statement.close();
+            connection.close();
+
+        } catch (RemoteException | SQLException e) {
+            String errorMessage = StringUtils.join("Could not process importWorkspace() for baustein ", bausteinName,
+                    ", because of: ", e.getClass().getName(), " - ", e.getMessage());
+            logger.error(errorMessage, e);
+            throw new RuntimeException(errorMessage, e);
+        }
+    }
+
+    @Override
+    public void importWorkspace(byte[] workspaceData, String bausteinName, String elementId) {
+        try {
+            Folder parentFolder = (Folder) docRepoProxy.getByPath(StringUtils.join(
+                    bausteinFolderPath, bausteinName, "/workspace"));
             FileMutator fileMutator = new FileMutator();
             fileMutator.setElementID(elementId);
             fileMutator.setFolder_ID(parentFolder.getDBKey());
             fileMutator.setName(bausteinName);
             fileMutator.setType(DocRepoConstants.FILETYPE_WORKSPACE);
-
             File file = docRepoProxy.createFile(fileMutator, ADBUtility.zipElementContent(workspaceData), false);
-            Long workspaceDbKey = getItemDbKey(fileMutator.getName(), StringUtils.join(bausteinFolderPath, bausteinName,
-                    "/workspace/"));
-
             logger.info(StringUtils.join("Created Workspace file ", file.getDBKey()));
-
-            file.setElementID(elementId);
-            docRepoProxy.lockFile(workspaceDbKey);
-            docRepoProxy.updateFileAttributes(file);
-            docRepoProxy.unlockFile(workspaceDbKey);
         } catch (Exception e) {
             String errorMessage = StringUtils.join("Could not process importWorkspace() for baustein ", bausteinName,
                     ", because of: ", e.getClass().getName(), " - ", e.getMessage());
@@ -131,12 +210,6 @@ class DocRepoServiceImpl implements DocRepoService {
 
     @Override
     public void createFolder(String name) {
-/*
-        name = name.toUpperCase();
-        if (name.contains(".")) {
-            name = name.split("\\.")[1];
-        }
-*/
         logger.info(StringUtils.join("Creating folder for ", name));
 
         try {

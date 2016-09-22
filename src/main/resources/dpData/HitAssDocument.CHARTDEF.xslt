@@ -1,0 +1,1 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?><ChartingDefinitions><!--Assentis DocDesign generated XSLT File - do not modify this file at any time!--><!--Date and time: 21.09.2016 10:36:29--><!--Target Generator: 'C:\Assentis\5.10.3\DocDesign\bin\..\TargetGenerator\xml\ChartingDefGenerator.xml'--></ChartingDefinitions>
