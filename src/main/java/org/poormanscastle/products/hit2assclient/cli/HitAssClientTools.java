@@ -33,7 +33,8 @@ public class HitAssClientTools {
         Arrays.stream(Paths.get(
                 StringUtils.defaultString(System.getProperty("hit2ass.clou.path"),
                         "/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked")).toFile().
-                listFiles((dir, name) -> name.startsWith("B.ue") && !name.endsWith(".acr"))).forEach(bausteinFile -> {
+                listFiles((dir, name) -> (name.startsWith("B.al") || name.startsWith("B.ah") || name.startsWith("B.ue") || name.startsWith("B.ek"))
+                        && !name.endsWith(".acr"))).forEach(bausteinFile -> {
 
             // create base folder for this baustein, containing workspace and testdata subfolders.
             client.createFolder(bausteinFile.getName());

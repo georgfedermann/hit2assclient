@@ -41,9 +41,16 @@ import com.assentis.docrepo.service.iface.bean.ProtectedItem;
  */
 class DocRepoServiceImpl implements DocRepoService {
 
+    private String protocol = "http://";
+    private String serverName = "192.168.182.132";
+    private String docRepoPort = "12002";
+    private String docRepoServicesWebContext = "/DBLayer/services/";
+
+    private String derbyUrl = StringUtils.join("jdbc:derby://", serverName, ":1527/derby/repository.db");
+
     private final static Logger logger = Logger.getLogger(DocRepoServiceImpl.class);
 
-    private String docRepoBaseUrl = "http://172.20.10.8:12002/DBLayer/services/";
+    private String docRepoBaseUrl = StringUtils.join(protocol, serverName, ":", docRepoPort, docRepoServicesWebContext);
     private String username = "uta";
     private String password = "uta";
 
@@ -56,8 +63,7 @@ class DocRepoServiceImpl implements DocRepoService {
     @Override
     public byte[] retrieveWorkspaceForDbkey(String dbkey) {
         try {
-            String url = "jdbc:derby://172.20.10.8:1527/derby/repository.db";
-            Connection connection = DriverManager.getConnection(url);
+            Connection connection = DriverManager.getConnection(derbyUrl);
             Statement statement = connection.createStatement();
             ResultSet resultSet = statement.executeQuery(StringUtils.join("select content from COCKPITSCHEMA.ELEMENTCONTENT where cockpitelement_id = ", dbkey, " for update"));
             if (resultSet.next()) {
@@ -149,8 +155,7 @@ class DocRepoServiceImpl implements DocRepoService {
             // add dependency between workspace and deployment package to the REF table;
             String sql = StringUtils.join("INSERT INTO COCKPITSCHEMA.deploymentpackage(DEPLOYMENTPACKAGE_ID, WORKSPACE_ID, DEPLPKGCOCKPITELEMENT_ID, ID, DEPENDENTID) VALUES ((select INTEGER(max(deploymentpackage_id)+1) from COCKPITSCHEMA.deploymentpackage), null, null, '",
                     documentElementId, ".dp', '", workspaceElementId, "')");
-            String url = "jdbc:derby://172.20.10.8:1527/derby/repository.db";
-            Connection connection = DriverManager.getConnection(url);
+            Connection connection = DriverManager.getConnection(derbyUrl);
             Statement statement = connection.createStatement();
             statement.executeUpdate(sql);
             // set deployment package alias name
