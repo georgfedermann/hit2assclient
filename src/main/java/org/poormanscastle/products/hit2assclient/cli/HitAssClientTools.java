@@ -35,12 +35,12 @@ public class HitAssClientTools {
 
         Arrays.stream(Paths.get(StringUtils.defaultString(System.getProperty("hit2ass.clou.path"),
                 "/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked")).toFile().
-                listFiles((dir, name) -> whiteList.contains(name))).forEach(bausteinFile -> {
+                listFiles((dir, name) -> name.startsWith("B.") && !name.endsWith(".acr"))).forEach(bausteinFile -> {
             try {
                 System.out.println(StringUtils.join("Processing Baustein ", bausteinFile.getName()));
                 byte[] workspaceData = hit2AssService.renderBausteinToWorkspace(Files.readAllBytes(bausteinFile.toPath()));
                 Files.write(Paths.get(bausteinFile.getParent(), StringUtils.join(bausteinFile.getName(), ".acr")), workspaceData);
-            } catch (IOException e) {
+            } catch (Throwable e) {
                 e.printStackTrace();
             }
         });
