@@ -28,11 +28,13 @@ public class HitAssClientTools {
     }
 
     public static void processAllWorkingBausteineLocally() throws IOException {
+/*
         List<String> whiteList = new ArrayList<>();
         Files.lines(Paths.get("/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked/workingBausteine.txt"))
                 .forEach(line -> whiteList.add(line));
-        Hit2AssService hit2AssService = Hit2AssService.getHit2AssService();
+*/
 
+        Hit2AssService hit2AssService = Hit2AssService.getHit2AssService();
         Arrays.stream(Paths.get(StringUtils.defaultString(System.getProperty("hit2ass.clou.path"),
                 "/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked")).toFile().
                 listFiles((dir, name) -> name.startsWith("B.") && !name.endsWith(".acr"))).forEach(bausteinFile -> {
