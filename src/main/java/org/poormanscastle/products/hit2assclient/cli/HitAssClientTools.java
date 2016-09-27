@@ -5,7 +5,9 @@ import static com.google.common.base.Preconditions.checkState;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
@@ -21,7 +23,30 @@ public class HitAssClientTools {
 
     public final static Logger logger = Logger.getLogger(HitAssClientTools.class);
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
+        HitAssClientTools.processAllWorkingBausteineLocally();
+    }
+
+    public static void processAllWorkingBausteineLocally() throws IOException {
+        List<String> whiteList = new ArrayList<>();
+        Files.lines(Paths.get("/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked/workingBausteine.txt"))
+                .forEach(line -> whiteList.add(line));
+        Hit2AssService hit2AssService = Hit2AssService.getHit2AssService();
+
+        Arrays.stream(Paths.get(StringUtils.defaultString(System.getProperty("hit2ass.clou.path"),
+                "/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked")).toFile().
+                listFiles((dir, name) -> whiteList.contains(name))).forEach(bausteinFile -> {
+            try {
+                System.out.println(StringUtils.join("Processing Baustein ", bausteinFile.getName()));
+                byte[] workspaceData = hit2AssService.renderBausteinToWorkspace(Files.readAllBytes(bausteinFile.toPath()));
+                Files.write(Paths.get(bausteinFile.getParent(), StringUtils.join(bausteinFile.getName(), ".acr")), workspaceData);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    public static void importIntoDocRepo() throws IOException {
         checkState(!StringUtils.isBlank(System.getProperty("hit2ass.clou.encoding")), "Please set system property hit2ass.clou.encoding");
         checkState(!StringUtils.isBlank(System.getProperty("hit2ass.xml.encoding")), "Please set system property hit2ass.xml.encoding");
         logger.info(StringUtils.join("Using encoding ", System.getProperty("hit2ass.xml.encoding"), " for XMLs."));
@@ -29,12 +54,18 @@ public class HitAssClientTools {
 
         DocRepoService client = DocRepoService.getDocRepoService();
 
+        // workingBausteine.txt contains a white list of bausteine known to be working with the HIT/CLOU parser. Or the other way round.
+        // this white list is read into an array and used as a filter for the bausteine that shall be processed into DocFamily.
+        List<String> whiteList = new ArrayList<>();
+        Files.lines(Paths.get("/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked/workingBausteine.txt"))
+                .forEach(line -> whiteList.add(line));
+
+        Hit2AssService hit2AssService = Hit2AssService.getHit2AssService();
         // Process CLOU Bausteine
         Arrays.stream(Paths.get(
                 StringUtils.defaultString(System.getProperty("hit2ass.clou.path"),
                         "/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked")).toFile().
-                listFiles((dir, name) -> (name.startsWith("B.al") || name.startsWith("B.ah") || name.startsWith("B.ue") || name.startsWith("B.ek"))
-                        && !name.endsWith(".acr"))).forEach(bausteinFile -> {
+                listFiles((dir, name) -> whiteList.contains(name))).forEach(bausteinFile -> {
 
             // create base folder for this baustein, containing workspace and testdata subfolders.
             client.createFolder(bausteinFile.getName());
@@ -55,7 +86,6 @@ public class HitAssClientTools {
 
             // Try to create workspace and save it to DocRepo
             try {
-                Hit2AssService hit2AssService = Hit2AssService.getHit2AssService();
                 byte[] workspaceData = hit2AssService.renderBausteinToWorkspace(
                         Files.readAllBytes(bausteinFile.toPath()));
                 String workspaceElementId = hit2AssService.extractElementIdFromWorkspace(workspaceData);
