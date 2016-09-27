@@ -24,7 +24,8 @@ public class HitAssClientTools {
     public final static Logger logger = Logger.getLogger(HitAssClientTools.class);
 
     public static void main(String[] args) throws Exception {
-        HitAssClientTools.processAllWorkingBausteineLocally();
+        // HitAssClientTools.processAllWorkingBausteineLocally();
+        HitAssClientTools.importIntoDocRepo();
     }
 
     public static void processAllWorkingBausteineLocally() throws IOException {
@@ -33,11 +34,16 @@ public class HitAssClientTools {
         Files.lines(Paths.get("/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked/workingBausteine.txt"))
                 .forEach(line -> whiteList.add(line));
 */
+        List<String> blackList = new ArrayList<>();
+        Files.lines(Paths.get("/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked/ignoreList.txt"))
+                .forEach(line -> blackList.add(line));
+        Files.lines(Paths.get("/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked/repairList.txt"))
+                .forEach(line -> blackList.add(line));
 
         Hit2AssService hit2AssService = Hit2AssService.getHit2AssService();
         Arrays.stream(Paths.get(StringUtils.defaultString(System.getProperty("hit2ass.clou.path"),
                 "/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked")).toFile().
-                listFiles((dir, name) -> name.startsWith("B.") && !name.endsWith(".acr"))).forEach(bausteinFile -> {
+                listFiles((dir, name) -> name.startsWith("B.") && !name.endsWith(".acr") && !blackList.contains(name))).forEach(bausteinFile -> {
             try {
                 System.out.println(StringUtils.join("Processing Baustein ", bausteinFile.getName()));
                 byte[] workspaceData = hit2AssService.renderBausteinToWorkspace(Files.readAllBytes(bausteinFile.toPath()));
