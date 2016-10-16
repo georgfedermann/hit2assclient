@@ -11,6 +11,7 @@ import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
+import org.poormanscastle.products.hit2ass.renderer.DeployedModuleLibrary;
 import org.poormanscastle.products.hit2assclient.service.DocRepoService;
 import org.poormanscastle.products.hit2assclient.service.Hit2AssService;
 
@@ -57,8 +58,11 @@ public class HitAssClientTools {
     public static void importIntoDocRepo() throws IOException {
         checkState(!StringUtils.isBlank(System.getProperty("hit2ass.clou.encoding")), "Please set system property hit2ass.clou.encoding");
         checkState(!StringUtils.isBlank(System.getProperty("hit2ass.xml.encoding")), "Please set system property hit2ass.xml.encoding");
+        checkState(!StringUtils.isBlank(System.getProperty("hit2ass.clou.pathToDeployedModuleLibrary")), "Please set system property hit2ass.clou.pathToDeployedModuleLibrary");
         logger.info(StringUtils.join("Using encoding ", System.getProperty("hit2ass.xml.encoding"), " for XMLs."));
         logger.info(StringUtils.join("Using encoding ", System.getProperty("hit2ass.clou.encoding"), " for HIT/CLOU bausteins."));
+        logger.info(StringUtils.join("Using deployed module library workspace ", System.getProperty("hit2ass.clou.pathToDeployedModuleLibrary")));
+
 
         DocRepoService client = DocRepoService.getDocRepoService();
 
@@ -67,6 +71,9 @@ public class HitAssClientTools {
         List<String> whiteList = new ArrayList<>();
         Files.lines(Paths.get("/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked/workingBausteine.txt"))
                 .forEach(line -> whiteList.add(line));
+
+        whiteList.clear();
+        whiteList.add("B.al001");
 
         Hit2AssService hit2AssService = Hit2AssService.getHit2AssService();
         // Process CLOU Bausteine
@@ -108,6 +115,9 @@ public class HitAssClientTools {
             }
             // Try to create deployment package and import it to DocRepo
         });
+
+        // Store deployed module library
+        DeployedModuleLibrary.storeHitAssDeployedModuleLibrary();
     }
 
 }

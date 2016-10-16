@@ -15,7 +15,7 @@ import org.poormanscastle.products.hit2ass.ast.domain.ClouBaustein;
 import org.poormanscastle.products.hit2ass.parser.javacc.HitAssAstParser;
 import org.poormanscastle.products.hit2ass.parser.javacc.ParseException;
 import org.poormanscastle.products.hit2ass.renderer.IRTransformer;
-import org.poormanscastle.products.hit2ass.transformer.ClouBausteinMergerVisitor;
+import org.poormanscastle.products.hit2ass.transformer.ClouBausteinDependencyResolverVisitor;
 import org.poormanscastle.products.hit2ass.transformer.EraseBlanksVisitor;
 
 /**
@@ -70,7 +70,7 @@ class Hit2AssServiceImpl implements Hit2AssService {
         checkArgument(!StringUtils.isBlank(encoding), "Encoding for HIT/CLOU Bausteine must be defined in system property hit2ass.clou.encoding!");
         try {
             ClouBaustein baustein = new HitAssAstParser(new ByteArrayInputStream(bausteinData), encoding).CB();
-            baustein.accept(new ClouBausteinMergerVisitor());
+            baustein.accept(new ClouBausteinDependencyResolverVisitor());
             baustein.accept(new EraseBlanksVisitor());
             IRTransformer irTransformer = new IRTransformer();
             baustein.accept(irTransformer);
