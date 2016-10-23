@@ -47,7 +47,7 @@ public class HitAssClientTools {
                 listFiles((dir, name) -> name.startsWith("B.") && !name.endsWith(".acr") && !blackList.contains(name))).forEach(bausteinFile -> {
             try {
                 System.out.println(StringUtils.join("Processing Baustein ", bausteinFile.getName()));
-                byte[] workspaceData = hit2AssService.renderBausteinToWorkspace(Files.readAllBytes(bausteinFile.toPath()));
+                byte[] workspaceData = hit2AssService.renderBausteinToWorkspace(bausteinFile.getName(), Files.readAllBytes(bausteinFile.toPath()));
                 Files.write(Paths.get(bausteinFile.getParent(), StringUtils.join(bausteinFile.getName(), ".acr")), workspaceData);
             } catch (Throwable e) {
                 e.printStackTrace();
@@ -72,8 +72,10 @@ public class HitAssClientTools {
         Files.lines(Paths.get("/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked/workingBausteine.txt"))
                 .forEach(line -> whiteList.add(line));
 
+/*
         whiteList.clear();
         whiteList.add("B.al001");
+*/
 
         Hit2AssService hit2AssService = Hit2AssService.getHit2AssService();
         // Process CLOU Bausteine
@@ -81,7 +83,7 @@ public class HitAssClientTools {
                 StringUtils.defaultString(System.getProperty("hit2ass.clou.path"),
                         "/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked")).toFile().
                 listFiles((dir, name) -> whiteList.contains(name))).forEach(bausteinFile -> {
-
+            System.out.println(StringUtils.join("Processing Baustein ", bausteinFile));
             // create base folder for this baustein, containing workspace and testdata subfolders.
             client.createFolder(bausteinFile.getName());
 
@@ -101,7 +103,7 @@ public class HitAssClientTools {
 
             // Try to create workspace and save it to DocRepo
             try {
-                byte[] workspaceData = hit2AssService.renderBausteinToWorkspace(
+                byte[] workspaceData = hit2AssService.renderBausteinToWorkspace(bausteinFile.getName(),
                         Files.readAllBytes(bausteinFile.toPath()));
                 String workspaceElementId = hit2AssService.extractElementIdFromWorkspace(workspaceData);
                 String documentElementId = hit2AssService.extractElementIdFromDocument(workspaceData);

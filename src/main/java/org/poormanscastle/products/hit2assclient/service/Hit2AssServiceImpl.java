@@ -65,11 +65,12 @@ class Hit2AssServiceImpl implements Hit2AssService {
     }
 
     @Override
-    public byte[] renderBausteinToWorkspace(byte[] bausteinData) {
+    public byte[] renderBausteinToWorkspace(String bausteinName, byte[] bausteinData) {
         String encoding = System.getProperty("hit2ass.clou.encoding", "ISO8859_1");
         checkArgument(!StringUtils.isBlank(encoding), "Encoding for HIT/CLOU Bausteine must be defined in system property hit2ass.clou.encoding!");
         try {
             ClouBaustein baustein = new HitAssAstParser(new ByteArrayInputStream(bausteinData), encoding).CB();
+            baustein.setClouBausteinName(bausteinName);
             baustein.accept(new ClouBausteinDependencyResolverVisitor());
             baustein.accept(new EraseBlanksVisitor());
             IRTransformer irTransformer = new IRTransformer();

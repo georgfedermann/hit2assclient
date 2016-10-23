@@ -5,7 +5,7 @@ package org.poormanscastle.products.hit2assclient.service;
  */
 public interface Hit2AssService {
 
-    byte[] renderBausteinToWorkspace(byte[] bausteinData);
+    byte[] renderBausteinToWorkspace(String bausteinName, byte[] bausteinData);
 
     String extractElementIdFromWorkspace(byte[] workspaceData);
 
