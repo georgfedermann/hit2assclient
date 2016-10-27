@@ -88,6 +88,7 @@ public class HitAssClientTools {
             client.createFolder(bausteinFile.getName());
 
             // import XML testdata
+/*
             Arrays.stream(Paths.get("/Users/georg/vms/UbuntuWork/shared/hitass/testfaelle").toFile().
                     listFiles((dir, name) -> name.toLowerCase().contains(bausteinFile.getName().toLowerCase()) && name.endsWith("xml"))).forEach(
                     xmlFile -> {
@@ -100,6 +101,7 @@ public class HitAssClientTools {
                         }
                     }
             );
+*/
 
             // Try to create workspace and save it to DocRepo
             try {
