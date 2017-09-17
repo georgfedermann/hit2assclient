@@ -8,6 +8,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -60,6 +62,14 @@ class DocRepoServiceImpl implements DocRepoService {
 
     private PublicMutator docRepoProxy;
 
+    static {
+        try {
+            Class.forName("org.apache.derby.jdbc.ClientDriver").newInstance();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     public byte[] retrieveWorkspaceForDbkey(String dbkey) {
         try {
@@ -90,7 +100,21 @@ class DocRepoServiceImpl implements DocRepoService {
         // create zipped file with dummy deployment package
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         ZipOutputStream zipper = new ZipOutputStream(buffer);
-        Path dpInputFolder = Paths.get(getClass().getClassLoader().getResource("dpData").getPath());
+        // DeploymentPackage dummy data is contained in the jar file at the location dpData.
+        // try to find the jar file from which the hitAssClient is executed and gain access to this folder.
+        java.io.File jarFile = null;
+        FileSystem jarFileSystem = null;
+        try {
+            jarFile = new java.io.File(DocRepoServiceImpl.class.getProtectionDomain().getCodeSource().getLocation().
+                    toURI().getPath());
+            jarFileSystem = FileSystems.newFileSystem(Paths.get(jarFile.getAbsolutePath()), null);
+        } catch (Exception e) {
+            String errMsg = StringUtils.join("Could not access jar hitAssClient.jar file, because: ", e.getMessage());
+            logger.error(errMsg, e);
+            return;
+        }
+        // Path dpInputFolder = Paths.get(getClass().getClassLoader().getResource("dpData").getPath());
+        Path dpInputFolder = jarFileSystem.getPath("/dpData");
         try {
             Files.walk(dpInputFolder)
                     .filter(path -> !Files.isDirectory(path))

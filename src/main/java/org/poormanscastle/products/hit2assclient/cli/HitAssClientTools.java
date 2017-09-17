@@ -37,14 +37,20 @@ public class HitAssClientTools {
 */
         List<String> blackList = new ArrayList<>();
         Files.lines(Paths.get("/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked/ignoreList.txt"))
-                .forEach(line -> blackList.add(line));
+                .forEach(line -> {
+                    System.out.println(StringUtils.join("Ignoring ", line));
+                    blackList.add(line.trim());
+                });
         Files.lines(Paths.get("/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked/repairList.txt"))
-                .forEach(line -> blackList.add(line));
+                .forEach(line -> {
+                    System.out.println(StringUtils.join("Adding from repairlist to ignorelist: ", line));
+                    blackList.add(line.trim());
+                });
 
         Hit2AssService hit2AssService = Hit2AssService.getHit2AssService();
         Arrays.stream(Paths.get(StringUtils.defaultString(System.getProperty("hit2ass.clou.path"),
                 "/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked")).toFile().
-                listFiles((dir, name) -> name.startsWith("B.") && !name.endsWith(".acr") && !blackList.contains(name))).forEach(bausteinFile -> {
+                listFiles((dir, name) -> name.startsWith("B.") && !name.endsWith(".acr") && !blackList.contains(name.trim()))).forEach(bausteinFile -> {
             try {
                 System.out.println(StringUtils.join("Processing Baustein ", bausteinFile.getName()));
                 byte[] workspaceData = hit2AssService.renderBausteinToWorkspace(bausteinFile.getName(), Files.readAllBytes(bausteinFile.toPath()));
@@ -57,7 +63,9 @@ public class HitAssClientTools {
 
     public static void importIntoDocRepo() throws IOException {
         checkState(!StringUtils.isBlank(System.getProperty("hit2ass.clou.encoding")), "Please set system property hit2ass.clou.encoding");
-        checkState(!StringUtils.isBlank(System.getProperty("hit2ass.xml.encoding")), "Please set system property hit2ass.xml.encoding");
+        // if I get this right, this check is not necessary any more, because -Dfile.encoding=ISO-8859-1 is set and this
+        // covers it for hit baustein input.
+        // checkState(!StringUtils.isBlank(System.getProperty("hit2ass.xml.encoding")), "Please set system property hit2ass.xml.encoding");
         checkState(!StringUtils.isBlank(System.getProperty("hit2ass.clou.pathToDeployedModuleLibrary")), "Please set system property hit2ass.clou.pathToDeployedModuleLibrary");
         logger.info(StringUtils.join("Using encoding ", System.getProperty("hit2ass.xml.encoding"), " for XMLs."));
         logger.info(StringUtils.join("Using encoding ", System.getProperty("hit2ass.clou.encoding"), " for HIT/CLOU bausteins."));
@@ -117,7 +125,6 @@ public class HitAssClientTools {
                         e.getClass().getName(), " - ", e.getMessage());
                 logger.error(errorMessage, e);
             }
-            // Try to create deployment package and import it to DocRepo
         });
 
         // Store deployed module library
