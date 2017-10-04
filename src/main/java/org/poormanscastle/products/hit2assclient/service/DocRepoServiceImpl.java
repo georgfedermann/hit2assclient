@@ -59,6 +59,7 @@ class DocRepoServiceImpl implements DocRepoService {
     private long bausteinFolderId;
 
     String bausteinFolderPath = "HitClou/bausteine/";
+    String dbLibPath = "HitClou/dblib/";
 
     private PublicMutator docRepoProxy;
 
@@ -208,12 +209,31 @@ class DocRepoServiceImpl implements DocRepoService {
             fileMutator.setName(bausteinName);
             fileMutator.setType(DocRepoConstants.FILETYPE_WORKSPACE);
             File file = docRepoProxy.createFile(fileMutator, ADBUtility.zipElementContent(workspaceData), false);
-            logger.info(StringUtils.join("Created Workspace file ", file.getDBKey()));
+            logger.info(StringUtils.join("Created Workspace file ", file.getDBKey(), " for baustein ", bausteinName, "."));
         } catch (Exception e) {
             String errorMessage = StringUtils.join("Could not process importWorkspace() for baustein ", bausteinName,
                     ", because of: ", e.getClass().getName(), " - ", e.getMessage());
             logger.error(errorMessage, e);
             throw new RuntimeException(errorMessage, e);
+        }
+    }
+
+    @Override
+    public void importDeploymentPackageWorkspace(byte[] workspaceData, String elementId) {
+        try {
+            Folder parentFolder = (Folder) docRepoProxy.getByPath(dbLibPath);
+            FileMutator fileMutator = new FileMutator();
+            fileMutator.setElementID(elementId);
+            fileMutator.setFolder_ID(parentFolder.getDBKey());
+            fileMutator.setName("HitAssDeploymentPackageLibrary");
+            fileMutator.setType(DocRepoConstants.FILETYPE_WORKSPACE);
+            File file = docRepoProxy.createFile(fileMutator, ADBUtility.zipElementContent(workspaceData), false);
+            logger.info(StringUtils.join("Created HitAssDeploymentPackageLibrary in DocRepo."));
+        } catch (Exception e) {
+            String errMsg = StringUtils.join("Could not import the given workspace data as the deployment package library, because of: ",
+                    e.getClass().getName(), " - ", e.getMessage());
+            logger.error(errMsg, e);
+            throw new RuntimeException(errMsg, e);
         }
     }
 

@@ -129,6 +129,8 @@ public class HitAssClientTools {
 
         // Store deployed module library
         DeployedModuleLibrary.storeHitAssDeployedModuleLibrary();
+        byte[] xmlData = DeployedModuleLibrary.peekHitAssDeployedModuleLibrary();
+        client.importDeploymentPackageWorkspace(xmlData, hit2AssService.extractElementIdFromWorkspace(xmlData));
     }
 
 }

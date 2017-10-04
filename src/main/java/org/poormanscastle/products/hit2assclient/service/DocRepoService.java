@@ -35,6 +35,16 @@ public interface DocRepoService {
     void importWorkspace(byte[] workspaceData, String bausteinName, String elementId);
 
     /**
+     * technically very similar to importWorkspace(), but the workspace being imported is the one containing the
+     * deployed modules for the base workspaces containing the pendants to the Hit/Clou Bausteine.
+     * The workspace is imported to a different location, and the name is set to HitAssDeploymentPackageLibrary
+     * automatically.
+     * @param workspaceData
+     * @param elementId
+     */
+    void importDeploymentPackageWorkspace(byte[] workspaceData, String elementId);
+
+    /**
      * Imports a deployment package for a given workspace and creates all necessary references. The deployment package
      * is created for a document within a given workspace and contains several files describing how this document
      * can be rendered. If the document is named HitAssDocument, the deployment package is a zip package containing
