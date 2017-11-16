@@ -2,6 +2,10 @@ package org.poormanscastle.products.hit2assclient.cli;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -9,6 +13,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.stream.StreamResult;
+import javax.xml.transform.stream.StreamSource;
+
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.poormanscastle.products.hit2ass.renderer.DeployedModuleLibrary;
@@ -113,12 +124,18 @@ public class HitAssClientTools {
 
             // Try to create workspace and save it to DocRepo
             try {
+                long takeStartTime = System.currentTimeMillis();
                 byte[] workspaceData = hit2AssService.renderBausteinToWorkspace(bausteinFile.getName(),
                         Files.readAllBytes(bausteinFile.toPath()));
+                logger.info(StringUtils.join("workspace rendering took ", (System.currentTimeMillis() - takeStartTime), " ms for Baustein ", bausteinFile.getName(), "."));
                 String workspaceElementId = hit2AssService.extractElementIdFromWorkspace(workspaceData);
                 String documentElementId = hit2AssService.extractElementIdFromDocument(workspaceData);
+                takeStartTime = System.currentTimeMillis();
                 client.importWorkspace(workspaceData, bausteinFile.getName(), workspaceElementId);
+                logger.info(StringUtils.join("DocRepo-import workspace took ", (System.currentTimeMillis() - takeStartTime), " ms for Baustein ", bausteinFile.getName(), "."));
+                takeStartTime = System.currentTimeMillis();
                 client.importDeploymentPackage(bausteinFile.getName(), workspaceElementId, documentElementId);
+                logger.info(StringUtils.join("DocRepo-import deployment package took ", (System.currentTimeMillis() - takeStartTime), " ms for Baustein ", bausteinFile.getName(), "."));
             } catch (Error | Exception e) {
                 // javacc parser throws Errors ...
                 String errorMessage = StringUtils.join("Could not process HIT/CLOU Baustein ", bausteinFile.getName(), ", because:",
@@ -130,7 +147,22 @@ public class HitAssClientTools {
         // Store deployed module library
         DeployedModuleLibrary.storeHitAssDeployedModuleLibrary();
         byte[] xmlData = DeployedModuleLibrary.peekHitAssDeployedModuleLibrary();
-        client.importDeploymentPackageWorkspace(xmlData, hit2AssService.extractElementIdFromWorkspace(xmlData));
+        // sort deployed modules alphabetically by attribute @name
+        ByteArrayOutputStream result = new ByteArrayOutputStream();
+        logger.info(StringUtils.join("Loaded sorting xsl:\n", new String(IOUtils.toByteArray(HitAssClientTools.class.getResourceAsStream("/xslt/sort.xsl")))));
+        try {
+            StreamSource styleSheet = new StreamSource(HitAssClientTools.class.getResourceAsStream("/xslt/sort.xsl"));
+            TransformerFactory factory = TransformerFactory.newInstance();
+            Transformer transformer = factory.newTransformer(styleSheet);
+            transformer.transform(new StreamSource(new ByteArrayInputStream(xmlData)), new StreamResult(result));
+        } catch (TransformerException exception) {
+            String errMsg = StringUtils.join("Could not sort DeployedModule library alphabetically because: ", exception.getMessage());
+            logger.error(errMsg, exception);
+            throw new RuntimeException(errMsg, exception);
+        }
+        logger.info(StringUtils.join("Resulting deployed module library:\n", new String(result.toByteArray())));
+        IOUtils.write(result.toByteArray(), new BufferedOutputStream(new FileOutputStream("/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked/zzz.xml")));
+        client.importDeploymentPackageWorkspace(xmlData, hit2AssService.extractElementIdFromWorkspace(result.toByteArray()));
     }
 
 }

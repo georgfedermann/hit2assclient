@@ -1,11 +1,8 @@
 package org.poormanscastle.products.hit2assclient.service;
 
-import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.FileSystem;
@@ -150,10 +147,10 @@ class DocRepoServiceImpl implements DocRepoService {
             try {
                 zipper.flush();
                 zipper.close();
-                OutputStream testStream = new BufferedOutputStream(new FileOutputStream("/Users/georg/tmp/parking/test.zip"));
-                IOUtils.write(buffer.toByteArray(), testStream);
-                testStream.flush();
-                testStream.close();
+//                OutputStream testStream = new BufferedOutputStream(new FileOutputStream("/Users/georg/tmp/parking/test.zip"));
+//                IOUtils.write(buffer.toByteArray(), testStream);
+//                testStream.flush();
+//                testStream.close();
             } catch (IOException e) {
                 // Underlying stream is a ByteArrayOutputStream. There should be no troubles here.
                 logger.error(e);
@@ -166,6 +163,7 @@ class DocRepoServiceImpl implements DocRepoService {
         }
 
         try {
+            long takeStartTime = System.currentTimeMillis();
             Folder parentFolder = (Folder) docRepoProxy.getByPath(StringUtils.join(
                     bausteinFolderPath, bausteinName, "/workspace"));
             FileMutator fileMutator = new FileMutator();
@@ -176,7 +174,9 @@ class DocRepoServiceImpl implements DocRepoService {
 
             File file = docRepoProxy.createFile(fileMutator, ADBUtility.zipElementContent(buffer.toByteArray()), false);
             logger.info(StringUtils.join("Created deployment package file ", file.getDBKey()));
+            logger.info(StringUtils.join("Uploading deployment package to DocRepo took ", (System.currentTimeMillis() - takeStartTime), " ms for Baustein ", bausteinName, "."));
 
+            takeStartTime = System.currentTimeMillis();
             // add dependency between workspace and deployment package to the REF table;
             String sql = StringUtils.join("INSERT INTO COCKPITSCHEMA.deploymentpackage(DEPLOYMENTPACKAGE_ID, WORKSPACE_ID, DEPLPKGCOCKPITELEMENT_ID, ID, DEPENDENTID) VALUES ((select INTEGER(max(deploymentpackage_id)+1) from COCKPITSCHEMA.deploymentpackage), null, null, '",
                     documentElementId, ".dp', '", workspaceElementId, "')");
@@ -189,6 +189,8 @@ class DocRepoServiceImpl implements DocRepoService {
             statement.executeUpdate(sql);
             statement.close();
             connection.close();
+            logger.info(StringUtils.join("Updating database to reflect new deployment package for ", bausteinName, " took ",
+                    System.currentTimeMillis() - takeStartTime, " ms."));
 
         } catch (RemoteException | SQLException e) {
             String errorMessage = StringUtils.join("Could not process importWorkspace() for baustein ", bausteinName,
