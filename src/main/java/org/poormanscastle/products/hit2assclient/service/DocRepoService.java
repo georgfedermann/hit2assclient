@@ -39,6 +39,7 @@ public interface DocRepoService {
      * deployed modules for the base workspaces containing the pendants to the Hit/Clou Bausteine.
      * The workspace is imported to a different location, and the name is set to HitAssDeploymentPackageLibrary
      * automatically.
+     *
      * @param workspaceData
      * @param elementId
      */
@@ -57,6 +58,13 @@ public interface DocRepoService {
      *                           shall be generated.
      */
     void importDeploymentPackage(String bausteinName, String workspaceElementId, String documentElementId);
+
+    /**
+     * iterates over newly created workspaces, used some naming conventions to look for
+     * XML testdata at a well known test data repository within DocRepo. And if it finds any
+     * it will add a reference to the XML test data within the workspace.
+     */
+    void assignXmlTestData();
 
     byte[] retrieveWorkspaceForDbkey(String dbkey);
 

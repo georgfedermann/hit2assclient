@@ -25,15 +25,21 @@ import javax.xml.rpc.ServiceException;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
+import org.w3c.dom.Document;
 
 import com.assentis.adb.common.util.ADBUtility;
 import com.assentis.docrepo.service.common.DocRepoConstants;
 import com.assentis.docrepo.service.common.ServiceUtil;
 import com.assentis.docrepo.service.iface.PublicMutator;
 import com.assentis.docrepo.service.iface.bean.File;
+import com.assentis.docrepo.service.iface.bean.FileFinder;
 import com.assentis.docrepo.service.iface.bean.FileMutator;
 import com.assentis.docrepo.service.iface.bean.Folder;
 import com.assentis.docrepo.service.iface.bean.ProtectedItem;
+import com.assentis.docrepo.service.iface.bean.SearchOptions;
+import com.assentis.docrepo.service.iface.bean.SearchResult;
+
+import ch.assentis.dblayer.common.XMLUtils;
 
 /**
  * Created by georg on 15.09.16.
@@ -314,6 +320,65 @@ class DocRepoServiceImpl implements DocRepoService {
         } catch (MalformedURLException | ServiceException | RemoteException e) {
             logger.error(StringUtils.join("Got this problem: ", e.getClass().getName(), " - ", e.getMessage(), "; when trying to load this DocRepo folder: ",
                     bausteinFolderPath, ", using this DocRepo URL: ", docRepoBaseUrl));
+        }
+    }
+
+    @Override
+    public void assignXmlTestData() {
+        String xmlDateiPath = "/Cockpit/Object/Object[@name='Variable Groups']/Object/Object/Object[@name='HitAss XML File']/Properties/Attributes/Attribute[@name='URI']/Object/Properties/Attributes/Attribute";
+
+        try {
+            PublicMutator proxy = ServiceUtil.createPublicMutatorServiceStub(new URL(docRepoBaseUrl), username, password);
+
+            FileFinder ff = new FileFinder();
+            ff.setType(DocRepoConstants.FILETYPE_WORKSPACE);
+            ProtectedItem pi = proxy.getByPath("HitClou/bausteine/");
+            SearchOptions options = new SearchOptions();
+            options.setContext(pi);
+            SearchResult[] foundWorkspaces = proxy.search(new FileFinder[]{ff}, options);
+
+            for (SearchResult workspaceSearchResult : foundWorkspaces) {
+                ProtectedItem workspaceProtectedItem = workspaceSearchResult.getItem();
+
+                if (workspaceProtectedItem instanceof File) {
+                    File workspaceFile = (File) workspaceProtectedItem;
+
+                    FileFinder ffXml = new FileFinder();
+                    ffXml.setType(DocRepoConstants.FILETYPE_XML);
+                    ffXml.setName(StringUtils.join("%", workspaceFile.getName(), "%"));
+                    ffXml.setNamePattern(true);
+                    ProtectedItem piXmlFolder = proxy.getByPath("HitClouTestdata/BA/all");
+                    SearchOptions optionsXml = new SearchOptions();
+                    optionsXml.setContext(piXmlFolder);
+                    SearchResult[] foundXml = proxy.search(new FileFinder[]{ffXml}, optionsXml);
+                    if (foundXml.length > 0) {
+                        ProtectedItem piResXml = foundXml[0].getItem();
+                        if (piResXml instanceof File) {
+                            File xmlFile = (File) piResXml;
+                            String elementName = xmlFile.getName();
+                            String elementDBID = xmlFile.getDBKey().toString();
+                            String elementID = xmlFile.getElementID();
+
+                            long dbkey = workspaceFile.getDBKey();
+                            byte[] data = proxy.getFile(dbkey, true).getContentZipped();
+                            byte[] unzipped = ADBUtility.unzipElementContent(data);
+                            Document doc = XMLUtils.parseDocument(unzipped);
+
+                            XMLUtils.findOrCreateNode(doc, xmlDateiPath + "[@name='RepoElementID']", false).setTextContent(elementID);
+                            XMLUtils.findOrCreateNode(doc, xmlDateiPath + "[@name='RepoElementName']", false).setTextContent(elementName);
+                            XMLUtils.findOrCreateNode(doc, xmlDateiPath + "[@name='RepoElementExtension']", false).setTextContent("xml");
+                            XMLUtils.findOrCreateNode(doc, xmlDateiPath + "[@name='RepoElementDBID']", false).setTextContent(elementDBID);
+                            byte[] newContent = XMLUtils.serializeDocument(doc);
+
+                            proxy.lockFile(dbkey);
+                            proxy.updateFileContent(dbkey, ADBUtility.zipElementContent(newContent), false, true);
+                        }
+                    }
+                }
+            }
+        } catch (Exception exception) {
+            String errMsg = StringUtils.join("Failed to map XML test data to newly created workspaces, because: ", exception.getMessage());
+            logger.error(errMsg, exception);
         }
     }
 

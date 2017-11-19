@@ -160,9 +160,11 @@ public class HitAssClientTools {
             logger.error(errMsg, exception);
             throw new RuntimeException(errMsg, exception);
         }
-        logger.info(StringUtils.join("Resulting deployed module library:\n", new String(result.toByteArray())));
+        logger.info(StringUtils.join("Resulting deployed module library size:\n", result.toByteArray().length, " bytes"));
         IOUtils.write(result.toByteArray(), new BufferedOutputStream(new FileOutputStream("/Users/georg/vms/UbuntuWork/shared/hitass/reverseEngineering/hit2assentis_reworked/zzz.xml")));
         client.importDeploymentPackageWorkspace(xmlData, hit2AssService.extractElementIdFromWorkspace(result.toByteArray()));
+        logger.info(StringUtils.join("Trying to inject XML test data into newly created workspaces."));
+        client.assignXmlTestData();
     }
 
 }
