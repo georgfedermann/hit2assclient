@@ -1,5 +1,6 @@
 package org.poormanscastle.products.hit2assclient.service;
 
+import java.beans.PropertyVetoException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,7 +14,6 @@ import java.nio.file.Paths;
 import java.rmi.RemoteException;
 import java.sql.Blob;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -38,6 +38,7 @@ import com.assentis.docrepo.service.iface.bean.Folder;
 import com.assentis.docrepo.service.iface.bean.ProtectedItem;
 import com.assentis.docrepo.service.iface.bean.SearchOptions;
 import com.assentis.docrepo.service.iface.bean.SearchResult;
+import com.mchange.v2.c3p0.ComboPooledDataSource;
 
 import ch.assentis.dblayer.common.XMLUtils;
 
@@ -64,20 +65,39 @@ class DocRepoServiceImpl implements DocRepoService {
     String bausteinFolderPath = "HitClou/bausteine/";
     String dbLibPath = "HitClou/dblib/";
 
+    ComboPooledDataSource cpds = null;
+
     private PublicMutator docRepoProxy;
 
-    static {
+    void init() {
         try {
-            Class.forName("org.apache.derby.jdbc.ClientDriver").newInstance();
-        } catch (Exception e) {
-            e.printStackTrace();
+
+            cpds = new ComboPooledDataSource();
+            cpds.setDriverClass("org.apache.derby.jdbc.ClientDriver"); //loads the jdbc driver
+            cpds.setJdbcUrl(derbyUrl);
+            // cpds.setUser("swaldman");
+            // cpds.setPassword("test-password");
+
+            // the settings below are optional -- c3p0 can work with defaults
+            cpds.setMinPoolSize(5);
+            cpds.setAcquireIncrement(5);
+            cpds.setMaxPoolSize(20);
+
+            docRepoProxy = ServiceUtil.createPublicMutatorServiceStub(new URL(docRepoBaseUrl), username, password);
+            Folder bausteinFolder = (Folder) docRepoProxy.getByPath(bausteinFolderPath);
+            bausteinFolderId = bausteinFolder.getDBKey();
+            logger.info(StringUtils.join("Found dbkey ", bausteinFolderId, " for folder with path ", bausteinFolderPath));
+        } catch (MalformedURLException | ServiceException | RemoteException | PropertyVetoException e) {
+            logger.error(StringUtils.join("Got this problem: ", e.getClass().getName(), " - ", e.getMessage(), "; when trying to load this DocRepo folder: ",
+                    bausteinFolderPath, ", using this DocRepo URL: ", docRepoBaseUrl));
         }
     }
 
     @Override
     public byte[] retrieveWorkspaceForDbkey(String dbkey) {
+        Connection connection = null;
         try {
-            Connection connection = DriverManager.getConnection(derbyUrl);
+            connection = cpds.getConnection();
             Statement statement = connection.createStatement();
             ResultSet resultSet = statement.executeQuery(StringUtils.join("select content from COCKPITSCHEMA.ELEMENTCONTENT where cockpitelement_id = ", dbkey, " for update"));
             if (resultSet.next()) {
@@ -96,6 +116,14 @@ class DocRepoServiceImpl implements DocRepoService {
                     e.getClass().getName(), " - ", e.getMessage());
             logger.error(errorMessage);
             throw new RuntimeException(errorMessage, e);
+        } finally {
+            try {
+                connection.close();
+            } catch (Exception e) {
+                String errMsg = StringUtils.join("Error when trying to return connection to pool: ",
+                        e.getClass().getSimpleName(), " - ", e.getMessage());
+                logger.error(errMsg, e);
+            }
         }
     }
 
@@ -186,7 +214,7 @@ class DocRepoServiceImpl implements DocRepoService {
             // add dependency between workspace and deployment package to the REF table;
             String sql = StringUtils.join("INSERT INTO COCKPITSCHEMA.deploymentpackage(DEPLOYMENTPACKAGE_ID, WORKSPACE_ID, DEPLPKGCOCKPITELEMENT_ID, ID, DEPENDENTID) VALUES ((select INTEGER(max(deploymentpackage_id)+1) from COCKPITSCHEMA.deploymentpackage), null, null, '",
                     documentElementId, ".dp', '", workspaceElementId, "')");
-            Connection connection = DriverManager.getConnection(derbyUrl);
+            Connection connection = cpds.getConnection();
             Statement statement = connection.createStatement();
             statement.executeUpdate(sql);
             // set deployment package alias name
@@ -198,9 +226,9 @@ class DocRepoServiceImpl implements DocRepoService {
             logger.info(StringUtils.join("Updating database to reflect new deployment package for ", bausteinName, " took ",
                     System.currentTimeMillis() - takeStartTime, " ms."));
 
-        } catch (RemoteException | SQLException e) {
-            String errorMessage = StringUtils.join("Could not process importWorkspace() for baustein ", bausteinName,
-                    ", because of: ", e.getClass().getName(), " - ", e.getMessage());
+        } catch (Exception e) {
+            String errorMessage = StringUtils.join("Could not process importDeploymentPackage() for baustein ",
+                    bausteinName, ", because of: ", e.getClass().getName(), " - ", e.getMessage());
             logger.error(errorMessage, e);
             throw new RuntimeException(errorMessage, e);
         }
@@ -308,18 +336,6 @@ class DocRepoServiceImpl implements DocRepoService {
                     e.getClass().getName(), " - ", e.getMessage());
             logger.error(errorMessage, e);
             throw new RuntimeException(errorMessage, e);
-        }
-    }
-
-    void init() {
-        try {
-            docRepoProxy = ServiceUtil.createPublicMutatorServiceStub(new URL(docRepoBaseUrl), username, password);
-            Folder bausteinFolder = (Folder) docRepoProxy.getByPath(bausteinFolderPath);
-            bausteinFolderId = bausteinFolder.getDBKey();
-            logger.info(StringUtils.join("Found dbkey ", bausteinFolderId, " for folder with path ", bausteinFolderPath));
-        } catch (MalformedURLException | ServiceException | RemoteException e) {
-            logger.error(StringUtils.join("Got this problem: ", e.getClass().getName(), " - ", e.getMessage(), "; when trying to load this DocRepo folder: ",
-                    bausteinFolderPath, ", using this DocRepo URL: ", docRepoBaseUrl));
         }
     }
 
